@@ -13,10 +13,20 @@
         <h1>Bienvenido a Mi Blog commit</h1>
         <p>Este es un blog simple hecho con Flask.</p>
         {% include 'navbar.html' %}
-        <div>
-            {% block content %}
-            este es el base html
-            {% endblock %}
-        </div>
+            <div class="container mt-3">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }}" role="alert">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+
+
     </body>
 </html>

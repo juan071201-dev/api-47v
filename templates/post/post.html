@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="my-4"><strong>Titulo del Post:</strong> {{ post['title'] }}</h1>
+<h1 class="my-4"><strong>Título del Post:</strong> {{ post['title'] }}</h1>
 <p><strong>Fecha de creación del Post:</strong> {{ post['created'] }}</p>
-<p class="mb-4"><strong>Contenido del Post</strong>: {{ post['content'] }}</p>
-<a href="{{ url_for('get_all_posts') }}" class="btn btn-primary">
+<p class="mb-4"><strong>Contenido del Post:</strong> {{ post['content'] }}</p>
+
+<a href="{{ url_for('show_all_posts') }}" class="btn btn-primary">
     Volver a la lista de posts
 </a>
 {% endblock %}

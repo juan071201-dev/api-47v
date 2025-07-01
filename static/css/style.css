@@ -18,3 +18,9 @@ tr.htmx-swapping td {
   opacity: 0;
   transition: opacity 1s ease-out;
 }
+.success {
+  color: green;
+}
+.error {
+  color: red;
+}
