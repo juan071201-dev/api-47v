@@ -1,94 +1,127 @@
-from flask import Flask, render_template, abort, request, redirect, url_for, jsonify
-import sqlite3
+from typing import Optional
 
-def get_db_connection():
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
-    return conn
+from fastapi import FastAPI, Path, Query
 
-app = Flask(__name__)
-
-@app.route('/', methods=['GET'])
-def base():
-    return render_template('base.html')
-
-@app.route('/home', methods=['GET'])
-def home():
-    titulo = "esta es el html home como variable"
-    return render_template('home.html', titulo=titulo)
-
-@app.route('/posts', methods=['GET'])
-def get_all_posts():
-    conn = get_db_connection()
-    posts = conn.execute('SELECT * FROM posts').fetchall()
-    conn.close()
-    return render_template('post/post_list.html', posts=posts)
-
-
-@app.route('/posts/<int:post_id>', methods=['GET'])
-def get_one_post(post_id):
-    conn = get_db_connection()
-    post = conn.execute('SELECT * FROM posts WHERE id = ?', (post_id,)).fetchone()
-    conn.close()
-    if post is None:
-        abort(404)
-    return render_template("post/post.html", post=post)
-
-@app.route('/posts/create', methods=['GET', 'POST'])
-def create_one_post():
-    if request.method == "GET":
-        return render_template("post/create.html")
-    if request.method == "POST":
-        title = request.form["title"]
-        content = request.form["content"]
-        conn = get_db_connection()
-        conn.execute('INSERT INTO posts (title, content) VALUES (?, ?)', (title, content))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('get_all_posts'))
-    
-
-@app.route('/posts/edit/<int:post_id>', methods=['GET', 'POST'])
-def edit_one_post(post_id):
-    if request.method == "GET":
-        conn = get_db_connection()
-        post = conn.execute('SELECT * FROM posts WHERE id = ?', (post_id,)).fetchone()
-        conn.close()
-        return render_template("post/edit.html", post=post)
-    if request.method == "POST":
-        title = request.form["title"]
-        content = request.form["content"]
-        conn = get_db_connection()
-        conn.execute('UPDATE posts SET title = ?, content = ? WHERE id = ?', (title, content, post_id))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('get_all_posts'))
-    
-
-@app.route('/posts/delete/<int:post_id>', methods=['DELETE'])
-def delete_one_post(post_id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM posts WHERE id = ?', (post_id,))
-    conn.commit()
-    conn.close()
-    return "", 200
-
-
-@app.route('/api/new', methods=['GET'])
-def new():
-    datos = [
-        {
-        "nombre": "Jorge",
-        "edad": 35,
-        "trabaja": True
+base_de_datos = {
+    "usuarios": {
+        1: {
+            "id": 1,
+            "nombre": "María López",
+            "email": "maria@example.com",
+            "activo": True,
+            "rol": "admin",
         },
-        {
-        "nombre": "Jaime",
-        "edad": 34,
-        "trabaja": False
+        2: {
+            "id": 2,
+            "nombre": "Juan Pérez",
+            "email": "juan@example.com",
+            "activo": True,
+            "rol": "usuario",
         },
-    ]
-    return datos, 200
+        3: {
+            "id": 3,
+            "nombre": "Ana García",
+            "email": "ana@example.com",
+            "activo": False,
+            "rol": "usuario",
+        },
+        4: {
+            "id": 4,
+            "nombre": "Carlos Ruiz",
+            "email": "carlos@example.com",
+            "activo": True,
+            "rol": "editor",
+        },
+    },
+    "productos": {
+        101: {
+            "id": 101,
+            "nombre": "Laptop",
+            "categoria": "electrónica",
+            "precio": 999.99,
+            "stock": 15,
+            "descuento": True,
+        },
+        102: {
+            "id": 102,
+            "nombre": "Libro Python",
+            "categoria": "libros",
+            "precio": 39.99,
+            "stock": 42,
+            "descuento": False,
+        },
+        103: {
+            "id": 103,
+            "nombre": "Smartphone",
+            "categoria": "electrónica",
+            "precio": 699.99,
+            "stock": 8,
+            "descuento": True,
+        },
+        104: {
+            "id": 104,
+            "nombre": "Monitor",
+            "categoria": "electrónica",
+            "precio": 249.99,
+            "stock": 0,
+            "descuento": False,
+        },
+    },
+    "pedidos": {
+        1001: {
+            "id": 1001,
+            "usuario_id": 2,
+            "productos": [101, 102],
+            "total": 1039.98,
+            "estado": "completado",
+        },
+        1002: {
+            "id": 1002,
+            "usuario_id": 1,
+            "productos": [103],
+            "total": 699.99,
+            "estado": "en_proceso",
+        },
+        1003: {
+            "id": 1003,
+            "usuario_id": 3,
+            "productos": [101, 103, 104],
+            "total": 1949.97,
+            "estado": "cancelado",
+        },
+    },
+}
 
-if __name__ == '__main__':
-    app.run(debug=True)
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"ok": True}
+
+@app.get("/usuarios/{usuario_id}")
+def obtener_usuario(usuario_id: int = Path(..., title="ID del usuario", gt=0, example="1")):
+    usuario = base_de_datos["usuarios"].get(usuario_id)
+    if usuario == None:
+        return {"error": "Usuario no encontrado"}
+    return {"usuario": usuario}
+
+
+@app.get("/productos/")
+def buscar_productos(
+    categoria: Optional[str] = Query(None, min_length=3),
+    con_descuento: bool = Query(False),
+    stock_minimo: int = Query(0, ge=0),
+):
+    resultados = []
+
+    for producto in base_de_datos["productos"].values():
+        if categoria and producto["categoria"] != categoria:
+            continue
+        if con_descuento and not producto["descuento"]:
+            continue
+        if producto["stock"] < stock_minimo:
+            continue
+
+        resultados.append(producto)
+    
+    return { "productos": resultados }
